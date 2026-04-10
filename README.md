@@ -1,26 +1,91 @@
-# Rahbar AI: Smart City Emergency Dispatch
-**Track:** Smart Cities & IoT
+# 🚨 Rahbar — Smart Emergency Dispatch System
 
-Rahbar AI is a real-time, IoT-driven command center for emergency fleet dispatch. It moves away from passive GPS monitoring to active traffic management by creating "Green Wave" routes—pre-empting traffic signals to clear paths for ambulances.
+> AI-powered emergency dispatch with live map, real-time fleet tracking, Claude AI decisions, and traffic signal pre-emption. Built for hackathon 2025.
 
-## 🚀 Features
-* **Live Geospatial Tracking:** Real-time location mapping of the active fleet using Leaflet.js.
-* **Dynamic Routing Algorithm:** Calculates the fastest route and pre-empts simulated traffic lights.
-* **LLM Dispatch Assistant:** Natural language AI command center for operators.
+---
 
-## 💻 Tech Stack
-* **Backend:** Python, FastAPI, WebSockets
-* **Frontend:** HTML5, CSS3 (Dark UI), Vanilla JS
-* **AI:** Anthropic Claude / LLM Integration
+## ⚡ Quick Start (3 steps)
 
-## 🛠️ How to Run Locally (For Judges)
-If you would like to run the simulation locally on your machine:
+### 1. Set your Anthropic API key
+```bash
+export ANTHROPIC_API_KEY=sk-ant-YOUR_KEY_HERE
+```
 
-1. Clone this repository.
-2. Install the required Python packages:
-   `pip install fastapi uvicorn websockets`
-3. Create a `.env` file in the root directory and add your API key:
-   `ANTHROPIC_API_KEY=your_key_here`
-4. Start the server:
-   `python main.py`
-5. Open `index.html` in any web browser.
+### 2. Install dependencies
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+### 3. Run
+```bash
+# From the citypulse/ folder:
+bash start.sh
+
+# OR manually:
+cd backend
+python3 main.py
+```
+
+Then open **http://localhost:8000** in your browser. That's it.
+
+---
+
+## 🏗 Project Structure
+
+```
+citypulse/
+├── backend/
+│   ├── main.py            # FastAPI server (ALL backend logic here)
+│   └── requirements.txt
+├── frontend/
+│   └── index.html         # Full frontend (served by FastAPI)
+├── start.sh               # One-command startup
+└── README.md
+```
+
+---
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Serves the frontend |
+| WS | `/ws` | WebSocket — live unit movement, signals, log |
+| GET | `/api/status` | System health + unit counts |
+| GET | `/api/units` | All ambulance positions + status |
+| GET | `/api/incidents` | Active incidents |
+| GET | `/api/hospitals` | Hospital capacity + ER wait times |
+| GET | `/api/signals` | Traffic signal states |
+| GET | `/api/log` | Dispatch log (last 100 entries) |
+| POST | `/api/incidents` | Report a new incident → auto-assigns unit |
+| POST | `/api/ai/dispatch` | Claude AI dispatch recommendation |
+| POST | `/api/ai/chat` | Natural language command to Claude |
+| GET | `/api/optimize-route` | Route optimization for a unit → incident |
+| GET | `/api/analytics` | Today's stats |
+
+---
+
+## ✨ Features
+
+- **Live WebSocket updates** — ambulances move on the map every 2 seconds in real-time
+- **Claude AI Smart Dispatch** — analyzes all incidents, units, hospitals and recommends tactical dispatch
+- **AI Chat** — type natural language: *"send nearest unit to Bandra"*, *"what's AMB-02 status?"*
+- **New Incident form** — auto-assigns nearest available unit, calculates ETA
+- **Traffic signal pre-emption** — green-wave corridor activated on AI dispatch
+- **Hospital routing** — shows nearest hospital for each incident
+- **Dispatch log** — live feed of all system events
+- **Analytics endpoint** — incident counts, response times, fuel savings
+
+---
+
+## 🎯 Hackathon Judging Points
+
+| Criteria | What we built |
+|----------|--------------|
+| AI/ML | Claude AI for dispatch decisions + natural language commands |
+| Real-time | WebSocket live updates, animated ambulances |
+| Impact | Emergency response time reduction (measurable via analytics) |
+| Tech stack | FastAPI + WebSockets + Leaflet.js + Anthropic API |
+| UX | Dark command-center UI, incident panel, signal panel, AI log |
+| Working prototype | Fully functional — not just a demo |

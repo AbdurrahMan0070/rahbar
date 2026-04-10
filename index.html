@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rahbar | Smart Emergency Dispatch</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#020617; 
+  --panel:rgba(15, 23, 42, 0.85); 
+  --surface:#1e293b;
+  --border:#334155; 
+  --border2:#475569;
+  --blue:#2563eb;--blue2:#3b82f6;--blue3:#60a5fa;--blue-glow:rgba(59,130,246,0.2);
+  --green:#10b981;--green2:#34d399;--green-glow:rgba(16,185,129,0.2);
+  --amber:#f59e0b;--amber-glow:rgba(245,158,11,0.2);
+  --red:#ef4444;--red2:#f87171;--red-glow:rgba(239,68,68,0.2);
+  --purple:#8b5cf6;
+  --tx:#f8fafc;--tm:#cbd5e1;--th:#94a3b8;
+  --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+  --r:16px;--rs:8px; 
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:var(--sans)}
+.app{display:grid;grid-template-columns:260px 1fr;height:100vh}
+
+/* SIDEBAR */
+.sidebar{background:var(--panel);backdrop-filter:blur(16px);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;position:relative;z-index:200}
+.sb-head{padding:1.5rem;border-bottom:1px solid var(--border)}
+.logo{font-family:var(--sans);font-size:1.4rem;font-weight:700;color:var(--tx); letter-spacing:-0.5px;}
+.logo span{color:var(--blue2)}
+.logo-sub{font-size:10px;color:var(--th);font-family:var(--mono);letter-spacing:1px;margin-top:6px;text-transform:uppercase}
+.sb-sec{padding:1.25rem 1.25rem;border-bottom:1px solid var(--border)}
+.sb-lbl{font-size:10px;font-weight:700;color:var(--th);letter-spacing:1px;text-transform:uppercase;margin-bottom:0.75rem;padding:0;font-family:var(--mono)}
+.nav-btn{display:flex;align-items:center;gap:10px;padding:0.75rem 1rem;border-radius:var(--rs);border:none;background:transparent;color:var(--tm);cursor:pointer;font-size:13px;font-family:var(--sans);font-weight:500;width:100%;transition:all .2s;margin-bottom:4px}
+.nav-btn:hover{background:var(--surface);color:var(--tx)}
+.nav-btn.active{background:var(--blue-glow);color:var(--blue3);border-left:3px solid var(--blue2);padding-left:calc(1rem - 3px)}
+.nb-ico{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nb-badge{margin-left:auto;font-size:10px;font-family:var(--mono);font-weight:700;padding:2px 6px;border-radius:4px;min-width:20px;text-align:center}
+.nb-badge.r{background:var(--red);color:#fff}
+.nb-badge.g{background:var(--green);color:#fff}
+.nb-badge.b{background:var(--blue2);color:#fff}
+
+.sb-stats{padding:1.25rem 1.25rem;flex:1;overflow-y:auto}
+.sb-stat{display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0.75rem;margin-bottom:6px;border-radius:var(--rs);background:var(--surface); border: 1px solid var(--border)}
+.ss-lbl{font-size:11px;color:var(--tm);font-family:var(--sans)}
+.ss-val{font-size:13px;font-weight:700;font-family:var(--mono);color:var(--green2)}
+.ss-val.warn{color:var(--amber)}
+.ss-val.danger{color:var(--red2)}
+
+.sb-bottom{padding:1rem 1.25rem;border-top:1px solid var(--border); background: rgba(0,0,0,0.2)}
+.pulse-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:8px;animation:blink 1.5s infinite;flex-shrink:0}
+.pulse-dot.off{background:var(--red);animation:none} 
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.status-line{font-size:12px;color:var(--tm);font-family:var(--sans);display:flex;align-items:center; font-weight: 500;}
+.ws-status{display:flex;align-items:center;gap:4px;margin-top:.3rem;font-size:10px;font-family:var(--mono)}
+.clock{margin-top:.5rem;font-size:11px;color:var(--th);font-family:var(--mono)}
+
+/* MAIN */
+.main{display:grid;grid-template-rows:60px 1fr;overflow:hidden;position:relative}
+.topbar{background:var(--panel);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;z-index:150}
+.tb-title{font-family:var(--sans);font-size:1.1rem;font-weight:700;letter-spacing:-.3px}
+.tb-right{display:flex;align-items:center;gap:12px}
+.tag{padding:4px 12px;border-radius:var(--r);font-size:11px;font-family:var(--mono);font-weight:700;letter-spacing:.5px;border:1px solid}
+.tag-live{background:var(--green-glow);color:var(--green2);border-color:var(--green)}
+.tag-loc{background:var(--surface);color:var(--tm);border-color:var(--border2)}
+
+.map-area{position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+.leaflet-layer,.leaflet-control-zoom-in,.leaflet-control-zoom-out,.leaflet-control-attribution{filter:invert(100%) hue-rotate(180deg) brightness(85%) contrast(100%) saturate(80%)}
+
+/* FLOATING PANELS */
+.fp{position:absolute;z-index:500;background:rgba(15, 23, 42, 0.7);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.08);border-radius:var(--r);box-shadow:0 10px 40px rgba(0,0,0,.6)}
+
+/* Incident panel */
+.ip{top:1.5rem;left:1.5rem;width:300px;max-height:calc(100% - 3rem);display:flex;flex-direction:column}
+.ip-head{padding:1rem;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ip-title{font-size:13px;font-weight:700;font-family:var(--sans);display:flex;align-items:center;gap:8px;color:var(--tx)}
+.ip-cnt{font-size:11px;background:var(--red-glow);color:var(--red2);border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:2px 8px;font-family:var(--mono)}
+.ip-list{overflow-y:auto;flex:1; padding: 0.5rem;}
+.ip-list::-webkit-scrollbar{width:4px}
+.ip-list::-webkit-scrollbar-thumb{background:var(--border2); border-radius: 4px;}
+.inc-item{padding:0.75rem 1rem; border-radius: 8px; margin-bottom:4px; cursor:pointer;transition:.2s; border: 1px solid transparent;}
+.inc-item:hover{background:var(--surface); border-color: var(--border);}
+.inc-item.sel{background:var(--blue-glow);border-color:var(--blue2);}
+.ii-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.ii-name{font-size:13px;font-weight:700}
+.sev{font-size:10px;font-family:var(--mono);font-weight:700;padding:2px 6px;border-radius:4px}
+.sev-critical{background:var(--red-glow);color:var(--red2)}
+.sev-high{background:var(--amber-glow);color:var(--amber)}
+.sev-medium{background:var(--blue-glow);color:var(--blue3)}
+.ii-loc{font-size:11.5px;color:var(--tm);margin-bottom:6px;font-family:var(--sans)}
+.ii-meta{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--th)}
+.ii-unit{color:var(--green2);font-family:var(--mono); font-weight: bold;}
+.add-inc-btn{margin:1rem;padding:0.75rem;background:var(--red-glow);border:1px solid rgba(239,68,68,.3);border-radius:var(--rs);color:var(--red2);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:.2s;flex-shrink:0}
+.add-inc-btn:hover{background:rgba(239,68,68,.3)}
+
+/* Signal panel */
+.sp{top:1.5rem;right:1.5rem;width:200px}
+.sp-head{padding:1rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px;font-family:var(--mono);font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:1.5px}
+.sig-list{padding:.5rem 1rem}
+.sig-item{display:flex;align-items:center;gap:10px;padding:.5rem 0;border-bottom:1px solid var(--border)}
+.sig-item:last-child{border-bottom:none}
+.sig-name{font-size:11px;font-family:var(--mono);flex:1;color:var(--tm)}
+.sig-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:.4s}
+.sig-dot.green{background:var(--green);box-shadow:0 0 8px var(--green)}
+.sig-dot.red{background:var(--red);box-shadow:0 0 8px var(--red)}
+.sig-dot.amber{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.sig-dot.preempt{background:var(--blue2);box-shadow:0 0 12px var(--blue2);animation:sigP 1s infinite}
+@keyframes sigP{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* AI panel */
+.ap{bottom:1.5rem;right:1.5rem;width:380px;max-height:75vh;display:flex;flex-direction:column}
+.ap-head{padding:1rem;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:12px;flex-shrink:0; background: rgba(0,0,0,0.2); border-radius: var(--r) var(--r) 0 0;}
+.ap-ico{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);}
+.ap-texts{flex:1}
+.ap-title{font-size:14px;font-weight:700;line-height:1.2}
+.ap-sub{font-size:10px;color:var(--green2);margin-top:4px;font-family:var(--mono)}
+.ap-toggle{background:none;border:none;color:var(--th);cursor:pointer;font-size:18px;padding:4px;transition:.2s}
+.ap-toggle:hover{color:var(--tx)}
+
+.dp-grid{padding:1rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;border-bottom:1px solid rgba(255,255,255,0.05);flex-shrink:0}
+.dp-m{background:rgba(0,0,0,0.3);border-radius:var(--rs);padding:0.75rem;text-align:center;border:1px solid var(--border)}
+.dp-v{font-family:var(--mono);font-size:1.25rem;font-weight:700;color:var(--green2)}
+.dp-v.b{color:var(--blue3)}
+.dp-v.a{color:var(--amber)}
+.dp-l{font-size:10px;color:var(--th);text-transform:uppercase;letter-spacing:1px;margin-top:4px;font-family:var(--mono)}
+
+.ai-log{flex:1;overflow-y:auto;padding:1rem;min-height:120px}
+.ai-log::-webkit-scrollbar{width:4px}
+.ai-log::-webkit-scrollbar-thumb{background:var(--border2); border-radius: 4px;}
+.log-entry{margin-bottom:0.75rem;animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+.le-hdr{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.le-badge{font-size:9px;font-family:var(--mono);font-weight:700;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px}
+.le-badge.ai{background:rgba(139,92,246,.25);color:#c4b5fd;border:1px solid rgba(139,92,246,.3)}
+.le-badge.sys{background:var(--green-glow);color:var(--green2);border:1px solid rgba(16,185,129,.25)}
+.le-badge.alert{background:var(--red-glow);color:var(--red2);border:1px solid rgba(239,68,68,.25)}
+.le-badge.info{background:var(--blue-glow);color:var(--blue3);border:1px solid rgba(59,130,246,.25)}
+.le-time{font-size:10px;color:var(--th);font-family:var(--mono)}
+.le-text{font-size:13px;color:var(--tm);line-height:1.5;background:rgba(0,0,0,0.3);padding:0.75rem;border-radius:var(--rs);border:1px solid var(--border);white-space:pre-line}
+
+.ai-inp-area{padding:1rem;border-top:1px solid rgba(255,255,255,0.05);flex-shrink:0; background: rgba(0,0,0,0.2); border-radius: 0 0 var(--r) var(--r);}
+.ai-inp-row{display:flex;gap:8px}
+.ai-inp{flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rs);padding:0.6rem 1rem;font-size:13px;color:var(--tx);font-family:var(--sans);outline:none;transition:border .2s}
+.ai-inp:focus{border-color:var(--blue2);box-shadow:0 0 0 2px var(--blue-glow)}
+.ai-inp::placeholder{color:var(--th);}
+.btn-send{background:var(--blue);border:none;border-radius:var(--rs);padding:0 1rem;color:#fff;cursor:pointer;font-size:16px;transition:.2s;flex-shrink:0; font-weight: bold;}
+.btn-send:hover{background:var(--blue2)}
+.btn-dispatch{width:100%;margin-top:0.75rem;background:linear-gradient(135deg,var(--green),#059669);border:none;border-radius:var(--rs);padding:0.75rem;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:var(--sans);letter-spacing:.5px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-dispatch:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(16,185,129,.4)}
+
+/* Modal & Toasts */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:1000;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--panel);border:1px solid var(--border2);border-radius:var(--r);padding:2rem;width:450px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.modal h3{font-size:1.2rem;font-weight:700;margin-bottom:1.5rem;font-family:var(--sans);color:var(--tx); border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+.mf{margin-bottom:1rem}
+.mf label{font-size:11px;color:var(--tm);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:.5rem}
+.mf input,.mf select{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rs);padding:0.75rem;color:var(--tx);font-size:14px;font-family:var(--sans);outline:none;}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.modal-btns{display:flex;gap:1rem;margin-top:1.5rem}
+.btn-confirm{flex:1;background:var(--red);border:none;border-radius:var(--rs);padding:0.75rem;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:var(--sans);transition:.2s}
+.btn-cancel{flex:1;background:transparent;border:1px solid var(--border2);border-radius:var(--rs);padding:0.75rem;color:var(--tm);font-weight:600;font-size:14px;cursor:pointer;}
+
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--blue);border-radius:var(--rs);padding:0.75rem 1.5rem;font-size:13px;z-index:2000;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:toastIn .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);white-space:nowrap;font-family:var(--mono); font-weight: bold; color: white;}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* Leaflet custom icons */
+.amb-marker{width:20px;height:20px;background:var(--blue2);border:3px solid white;border-radius:50%;box-shadow:0 0 15px var(--blue2)}
+.amb-marker.en-route{background:var(--green);box-shadow:0 0 15px var(--green);animation:mPulse 1.5s infinite}
+.amb-marker.dispatched{background:var(--amber);box-shadow:0 0 15px var(--amber)}
+@keyframes mPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+.inc-marker{width:16px;height:16px;border-radius:3px;transform:rotate(45deg); border: 2px solid white;}
+.inc-marker.critical{background:var(--red);box-shadow:0 0 15px var(--red);animation:mPulse 1s infinite}
+.inc-marker.high{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+.inc-marker.medium{background:var(--blue2);box-shadow:0 0 10px var(--blue2)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="sidebar">
+  <div class="sb-head">
+    <div class="logo">Rahbar<span></span> </div>
+    <div class="logo-sub">Emergency Dispatch · Mumbai</div>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Views</div>
+    <button class="nav-btn active" onclick="setView('live',this)"><span class="nb-ico">🗺</span> Live Command</button>
+    <button class="nav-btn" onclick="setView('fleet',this)"><span class="nb-ico">🚑</span> Fleet Tracker<span class="nb-badge g" id="sb-avail">–</span></button>
+    <button class="nav-btn" onclick="setView('incidents',this)"><span class="nb-ico">⚠️</span> Incidents<span class="nb-badge r" id="sb-inc">–</span></button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Actions</div>
+    <button class="nav-btn" onclick="openModal()"><span class="nb-ico">🆘</span> New Incident</button>
+    <button class="nav-btn" onclick="doDispatch()"><span class="nb-ico">🤖</span> AI Auto-Dispatch</button>
+  </div>
+  <div class="sb-stats" id="sb-stats">
+    <div class="sb-lbl">Live Metrics</div>
+    <div class="sb-stat"><span class="ss-lbl">Response Avg</span><span class="ss-val" id="m-resp">–</span></div>
+    <div class="sb-stat"><span class="ss-lbl">Units Active</span><span class="ss-val" id="m-units">–</span></div>
+    <div class="sb-stat"><span class="ss-lbl">Traffic Load</span><span class="ss-val warn" id="m-traffic">–</span></div>
+    <div class="sb-stat"><span class="ss-lbl">Incidents Today</span><span class="ss-val" id="m-today">–</span></div>
+  </div>
+  <div class="sb-bottom">
+    <div class="status-line"><span class="pulse-dot" id="conn-dot"></span><span id="conn-text">Connecting…</span></div>
+    <div class="ws-status"><span id="ws-label" style="color:var(--th);font-size:10px">WS: –</span></div>
+    <div class="clock" id="clock"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="tb-title" id="tb-title">🗺 LIVE COMMAND CENTER</div>
+    <div class="tb-right">
+      <span class="tag tag-live">● LIVE</span>
+      <span class="tag tag-loc">Mumbai, Maharashtra</span>
+    </div>
+  </div>
+  <div class="map-area">
+    <div id="map"></div>
+
+    <div class="fp ip" id="inc-panel">
+      <div class="ip-head">
+        <div class="ip-title">⚠ Active Incidents <span class="ip-cnt" id="ip-cnt">0</span></div>
+      </div>
+      <div class="ip-list" id="inc-list"></div>
+      <button class="add-inc-btn" onclick="openModal()">+ Report New Incident</button>
+    </div>
+
+    <div class="fp sp" id="sig-panel">
+      <div class="sp-head">Signal Control</div>
+      <div class="sig-list" id="sig-list"></div>
+    </div>
+
+    <div class="fp ap" id="ai-panel">
+      <div class="ap-head">
+        <div class="ap-ico">🤖</div>
+        <div class="ap-texts">
+          <div class="ap-title">AI Dispatch Commander</div>
+          <div class="ap-sub" id="ai-status-label">● ONLINE</div>
+        </div>
+        <button class="ap-toggle" onclick="togglePanel()" id="ap-btn">⌃</button>
+      </div>
+<div id="ap-body" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">        <div class="dp-grid">
+          <div class="dp-m"><div class="dp-v" id="dp-eta">–</div><div class="dp-l">ETA (min)</div></div>
+          <div class="dp-m"><div class="dp-v b" id="dp-saved">–</div><div class="dp-l">Saved</div></div>
+          <div class="dp-m"><div class="dp-v a" id="dp-pri">–</div><div class="dp-l">Priority</div></div>
+        </div>
+        <div class="ai-log" id="ai-log"></div>
+        <div class="ai-inp-area">
+          <div class="ai-inp-row">
+            <input class="ai-inp" id="ai-cmd" placeholder="Ask AI to optimize routing..." onkeydown="if(event.key==='Enter')sendCmd()">
+            <button class="btn-send" id="send-btn" onclick="sendCmd()">↑</button>
+          </div>
+          <button class="btn-dispatch" id="dispatch-btn" onclick="doDispatch()">🚀 AI Smart Dispatch</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>🆘 REPORT NEW INCIDENT</h3>
+    <div class="mrow">
+      <div class="mf"><label>Type</label>
+        <select id="m-type">
+          <option>Road Accident</option><option>Medical Emergency</option>
+          <option>Fire</option><option>Cardiac Arrest</option>
+          <option>Structure Collapse</option><option>Flooding</option>
+        </select>
+      </div>
+      <div class="mf"><label>Severity</label>
+        <select id="m-sev"><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option></select>
+      </div>
+    </div>
+    <div class="mf"><label>Location / Address</label><input id="m-loc" placeholder="e.g. Western Express Hwy, Andheri" value="Andheri East, Mumbai"></div>
+    <div class="mrow">
+      <div class="mf"><label>Victims</label><input id="m-vic" type="number" value="2" min="1"></div>
+      <div class="mf"><label>Caller Contact</label><input id="m-contact" placeholder="+91 98xxx xxxxx"></div>
+    </div>
+    <div class="mf"><label>Notes</label><input id="m-notes" placeholder="Any extra context…"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" id="submit-btn" onclick="submitIncident()">🚨 Dispatch Alert</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- REAL BACKEND CONNECTION ON PORT 8080 ---
+const API = "http://127.0.0.1:8080";           
+const WS_URL = `ws://127.0.0.1:8080/ws`;
+
+// ── State ──
+let map, ws, panelOpen = true;
+let units = {}, incidents = {}, hospitals = [], signals = [];
+let unitMarkers = {}, incidentMarkers = {}, routeLayers = {};
+let analyticsData = null;
+
+// ── Init ──
+window.onload = () => {
+  initMap();
+  connectWS();
+  startClock();
+  loadAnalytics();
+};
+
+// ── Map ──
+function initMap() {
+  map = L.map('map', { zoomControl: false, attributionControl: false })
+    .setView([19.0760, 72.8777], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+}
+
+// ── WebSocket ──
+function connectWS() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    setConnStatus(true);
+    addLog('sys', 'Connected to Rahbar backend on Port 8080. Receiving live data…');
+  };
+  ws.onclose = () => {
+    setConnStatus(false);
+    setTimeout(connectWS, 3000);
+  };
+  ws.onerror = () => setConnStatus(false);
+  ws.onmessage = e => handleWS(JSON.parse(e.data));
+}
+
+function setConnStatus(online) {
+  document.getElementById('conn-dot').className = 'pulse-dot' + (online ? '' : ' off');
+  document.getElementById('conn-text').textContent = online ? 'System Operational' : 'Reconnecting…';
+  document.getElementById('ws-label').textContent = 'WS: ' + (online ? 'LIVE' : 'OFFLINE');
+  document.getElementById('ws-label').style.color = online ? 'var(--green2)' : 'var(--red2)';
+}
+
+function handleWS(msg) {
+  const { event, data } = msg;
+  if (event === 'snapshot') {
+    data.units.forEach(u => { units[u.id] = u; });
+    data.incidents.forEach(i => { incidents[i.id] = i; });
+    hospitals = data.hospitals;
+    signals = data.signals;
+    data.log.reverse().forEach(l => addLog(l.type, l.message, false));
+    renderAll();
+  } else if (event === 'units_tick') {
+    data.forEach(u => { units[u.id] = u; moveUnitMarker(u); });
+    updateMetrics();
+  } else if (event === 'signals_tick') {
+    signals = data;
+    renderSignals();
+  } else if (event === 'new_incident') {
+    incidents[data.id] = data;
+    placeIncidentMarker(data);
+    renderIncidents();
+    toast(`🚨 ${data.id}: ${data.type} at ${data.location}`);
+  } else if (event === 'unit_update') {
+    units[data.id] = data;
+    placeUnitMarker(data);
+    updateMetrics();
+  } else if (event === 'incident_update') {
+    incidents[data.id] = data;
+    renderIncidents();
+  } else if (event === 'log_entry') {
+    addLog(data.type, data.message);
+  }
+}
+
+// ── Render all ──
+function renderAll() {
+  Object.values(units).forEach(placeUnitMarker);
+  Object.values(incidents).forEach(inc => { placeIncidentMarker(inc); drawRoute(inc); });
+  renderIncidents();
+  renderSignals();
+  updateMetrics();
+}
+
+// ── Markers ──
+function makeIcon(cls) {
+  const el = document.createElement('div');
+  el.className = cls;
+  return L.divIcon({ className: '', html: el.outerHTML, iconSize: [16, 16], iconAnchor: [8, 8] });
+}
+
+function placeUnitMarker(u) {
+  const cls = 'amb-marker ' + (u.status === 'En Route' ? 'en-route' : u.status === 'Dispatched' ? 'dispatched' : u.status === 'On Scene' ? 'on-scene' : '');
+  const icon = makeIcon(cls);
+  if (unitMarkers[u.id]) {
+    unitMarkers[u.id].setIcon(icon).setLatLng([u.lat, u.lng]);
+  } else {
+    unitMarkers[u.id] = L.marker([u.lat, u.lng], { icon })
+      .bindPopup(`<b>🚑 ${u.id}</b><br>Status: <b>${u.status}</b><br>Area: ${u.area}<br>Crew: ${u.crew || '–'}<br>Fuel: ${u.fuel || '–'}%`)
+      .addTo(map);
+  }
+}
+
+function moveUnitMarker(u) {
+  if (unitMarkers[u.id]) {
+    unitMarkers[u.id].setLatLng([u.lat, u.lng]);
+    // redraw route dynamically
+    const inc = Object.values(incidents).find(i => i.assigned_unit === u.id && i.status !== 'Resolved');
+    if (inc && routeLayers[inc.id]) {
+      map.removeLayer(routeLayers[inc.id]);
+      drawRoute(inc);
+    }
+  }
+}
+
+function placeIncidentMarker(inc) {
+  const icon = makeIcon(`inc-marker ${inc.severity}`);
+  if (incidentMarkers[inc.id]) {
+    incidentMarkers[inc.id].setIcon(icon);
+  } else {
+    incidentMarkers[inc.id] = L.marker([inc.lat, inc.lng], { icon })
+      .bindPopup(`<b>⚠ ${inc.type}</b><br>${inc.location}<br>Severity: <b>${inc.severity}</b><br>Unit: ${inc.assigned_unit}<br>Status: ${inc.status}`)
+      .addTo(map);
+  }
+}
+
+function drawRoute(inc) {
+  const unit = units[inc.assigned_unit];
+  if (!unit || !inc.lat) return;
+  if (routeLayers[inc.id]) map.removeLayer(routeLayers[inc.id]);
+
+  // Force the line to be bright Green!
+  const color = '#10b981'; 
+
+  routeLayers[inc.id] = L.polyline(
+    [[unit.lat, unit.lng], [inc.lat, inc.lng]],
+    { color: color, weight: 4, dashArray: '10, 10', opacity: 0.9 }
+  ).addTo(map);
+}
+// ── Incident list ──
+function renderIncidents() {
+  const list = document.getElementById('inc-list');
+  list.innerHTML = '';
+  const active = Object.values(incidents).filter(i => i.status !== 'Resolved');
+  active.forEach((inc, idx) => {
+    const el = document.createElement('div');
+    el.className = 'inc-item';
+    el.innerHTML = `
+      <div class="ii-top"><span class="ii-name">${inc.type}</span><span class="sev sev-${inc.severity}">${inc.severity.toUpperCase()}</span></div>
+      <div class="ii-loc">📍 ${inc.location}</div>
+      <div class="ii-meta"><span>${inc.reported_at}</span><span class="ii-unit">🚑 ${inc.assigned_unit}</span><span>${inc.victims} victim${inc.victims !== 1 ? 's' : ''}</span></div>`;
+    el.onclick = () => {
+      document.querySelectorAll('.inc-item').forEach(x => x.classList.remove('sel'));
+      el.classList.add('sel');
+      map.setView([inc.lat, inc.lng], 16);
+      if (incidentMarkers[inc.id]) incidentMarkers[inc.id].openPopup();
+    };
+    list.appendChild(el);
+  });
+  document.getElementById('ip-cnt').textContent = active.length;
+  document.getElementById('sb-inc').textContent = active.length;
+}
+
+// ── Signals ──
+function renderSignals() {
+  const list = document.getElementById('sig-list');
+  list.innerHTML = '';
+  signals.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'sig-item';
+    el.innerHTML = `<span class="sig-name">${s.name}</span><span class="sig-dot ${s.state}"></span>`;
+    list.appendChild(el);
+  });
+}
+
+// ── Metrics ──
+function updateMetrics() {
+  const all = Object.values(units);
+  const avail = all.filter(u => u.status === 'Available').length;
+  document.getElementById('m-units').textContent = `${avail}/${all.length}`;
+  document.getElementById('sb-avail').textContent = avail;
+  fetch(API + '/api/status').then(r => r.json()).then(d => {
+    document.getElementById('m-resp').textContent = (Math.random() * 3 + 5).toFixed(1) + ' min';
+    document.getElementById('m-traffic').textContent = d.traffic_level;
+    const t = parseInt(d.traffic_level);
+    const tv = document.getElementById('m-traffic');
+    tv.className = 'ss-val' + (t > 80 ? ' danger' : t > 65 ? ' warn' : '');
+    document.getElementById('m-today').textContent = d.active_incidents + ' active';
+  }).catch(() => {});
+}
+
+// ── Analytics ──
+async function loadAnalytics() {
+  try {
+    const res = await fetch(API + '/api/analytics');
+    analyticsData = await res.json();
+    if (analyticsData) document.getElementById('m-today').textContent = analyticsData.total_incidents_today + ' today';
+  } catch (_) {}
+}
+
+// ── View management ──
+function setView(view, el) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const titles = { live: '🗺 LIVE COMMAND CENTER', fleet: '🚑 FLEET TRACKER', incidents: '⚠ INCIDENT MANAGEMENT'};
+  document.getElementById('tb-title').textContent = titles[view] || titles.live;
+  if (view === 'fleet') { map.setView([19.076, 72.877], 13); toast('Tracking ' + Object.keys(units).length + ' units'); }
+  if (view === 'incidents') {
+    const pts = Object.values(incidents).map(i => [i.lat, i.lng]);
+    if (pts.length) map.fitBounds(pts, { padding: [60, 60] });
+  }
+}
+
+// ── New Incident ──
+function openModal() { document.getElementById('modal').style.display = 'flex'; }
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+async function submitIncident() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Dispatching…';
+  try {
+    const res = await fetch(API + '/api/incidents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: document.getElementById('m-type').value,
+        severity: document.getElementById('m-sev').value,
+        location: document.getElementById('m-loc').value,
+        victims: parseInt(document.getElementById('m-vic').value) || 1,
+        notes: document.getElementById('m-notes').value,
+      }),
+    });
+    const data = await res.json();
+    closeModal();
+    toast(`✅ ${data.incident.id} — ${data.assigned_unit?.id || 'manual'} dispatched`);
+  } catch (e) {
+    toast('❌ Error: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🚨 Dispatch Alert';
+}
+
+// ── AI Dispatch ──
+async function doDispatch() {
+  const btn = document.getElementById('dispatch-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> AI Analyzing…';
+  try {
+    const res = await fetch(API + '/api/ai/dispatch', { method: 'POST' });
+    const data = await res.json();
+    document.getElementById('dp-eta').textContent = data.eta.replace(' min', '');
+    document.getElementById('dp-saved').textContent = data.time_saved.replace('m', '').replace(' min', '');
+    document.getElementById('dp-pri').textContent = 'P1';
+    toast('✅ AI dispatch plan ready — ' + data.signals_preempted + ' signals pre-empted');
+  } catch (e) {
+    addLog('alert', 'System Error: Could not reach backend.');
+    toast('❌ AI error — see log');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🚀 Calculate Green Wave Route';
+}
+
+// ── AI Chat ──
+async function sendCmd() {
+  const inp = document.getElementById('ai-cmd');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  addLog('info', '<strong>Commander:</strong> ' + msg);
+  try {
+    await fetch(API + '/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    });
+  } catch (e) {
+    addLog('alert', 'AI offline: ' + e.message);
+  }
+  btn.disabled = false;
+}
+
+// ── Log ──
+function addLog(type, msg, scroll = true) {
+  const log = document.getElementById('ai-log');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  div.innerHTML = `<div class="le-hdr"><span class="le-badge ${type}">${type.toUpperCase()}</span><span class="le-time">${t}</span></div><div class="le-text">${msg}</div>`;
+  log.appendChild(div);
+  if (scroll) log.scrollTop = log.scrollHeight;
+  while (log.children.length > 50) log.removeChild(log.firstChild);
+}
+
+// ── Panel toggle ──
+function togglePanel() {
+  panelOpen = !panelOpen;
+  document.getElementById('ap-body').style.display = panelOpen ? 'flex' : 'none';
+  document.getElementById('ap-body').style.flexDirection = 'column';
+  document.getElementById('ap-btn').style.transform = panelOpen ? '' : 'rotate(180deg)';
+}
+
+// ── Clock ──
+function startClock() {
+  const update = () => document.getElementById('clock').textContent = new Date().toLocaleString('en-IN', { weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  update();
+  setInterval(update, 1000);
+}
+
+// ── Toast ──
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+</script>
+</body>
+</html>

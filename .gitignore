@@ -1,0 +1,6 @@
+# Ignore environment variables (Secures API Keys!)
+.env
+
+# Ignore Python cache files (Keeps your repo clean)
+__pycache__/
+*.pyc
